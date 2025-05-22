@@ -1,0 +1,39 @@
+# Core
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+pydantic-settings>=2.0.3
+python-multipart>=0.0.6
+
+# Database
+redis>=5.0.0
+qdrant-client>=1.6.9
+
+# AI/ML
+openai>=1.3.0
+sentence-transformers>=2.2.2
+numpy>=1.24.0
+
+# Monitoring
+prometheus-client>=0.17.1
+
+# Utilities
+typing-extensions>=4.5.0
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.6
+
+# Development
+autopep8>=2.0.2
+black>=23.7.0
+isort>=5.12.0
+mypy>=1.5.1
+pytest>=7.4.2
+pytest-asyncio>=0.21.1
+httpx>=0.24.1
+
+# Documentation
+pydocstyle>=6.3.0
+mkdocs>=1.5.2
+mkdocs-material>=9.1.21

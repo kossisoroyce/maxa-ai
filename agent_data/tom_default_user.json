@@ -1,0 +1,12 @@
+{
+  "user_id": "default_user",
+  "preferences": [],
+  "knowledge": {
+    "facts": {},
+    "last_updated": "2025-05-17T17:30:29.294600"
+  },
+  "relationship_strength": 0.6000000000000001,
+  "trust_level": 0.55,
+  "emotional_bond": 0.3,
+  "interaction_count": 1
+}

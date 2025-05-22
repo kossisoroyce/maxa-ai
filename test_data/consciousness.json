@@ -1,0 +1,219 @@
+{
+  "state": {
+    "state": "active",
+    "intensity": 0.8,
+    "emotional_state": {
+      "neutral": 1.0
+    },
+    "focus": "Processing question interaction",
+    "sub_states": [],
+    "last_updated": "2025-05-17T19:21:24.304570"
+  },
+  "thoughts": [
+    {
+      "id": "6488302c-b720-4c61-bd3d-623da3a5eb26",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T19:14:19.718099",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "bb20ba03-b5f4-4544-bf86-34e5f4be3213",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T19:14:27.120658",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "0201c4cb-a44c-457f-9aa2-5149018dd858",
+      "content": "Created a new goal: Improve Python skills",
+      "timestamp": "2025-05-17T19:14:29.252010",
+      "source": "goal_system",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "ab2fb531-d9ac-4298-bcd3-2f78b3362303",
+      "content": "Processing chat with neutral sentiment",
+      "timestamp": "2025-05-17T19:14:29.252480",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "bd768aab-452d-4981-bf1d-676253ac35a1",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T19:14:36.191401",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "d9c2b742-439b-4334-9c8b-75c3c91d7fed",
+      "content": "Processing chat with neutral sentiment",
+      "timestamp": "2025-05-17T19:14:42.798222",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "fb741146-b821-4f62-9ab1-081d12621145",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T19:17:07.592108",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "b8a0f37f-70f3-4f2c-8284-1c10f00b95af",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T19:17:14.309919",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "58effd36-ac15-4b2a-9b68-85a2bd3c84d8",
+      "content": "Created a new goal: Improve Python Skills",
+      "timestamp": "2025-05-17T19:17:17.468927",
+      "source": "goal_system",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "5f49f502-d59f-479f-a1c8-17da0a3dfe50",
+      "content": "Processing chat with neutral sentiment",
+      "timestamp": "2025-05-17T19:17:17.469002",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "99e3859c-164a-4fbf-9cde-0a805200c4af",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T19:17:24.399163",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "4d401cd2-254f-4ff6-b3b1-f0cc6f792d39",
+      "content": "Processing chat with neutral sentiment",
+      "timestamp": "2025-05-17T19:17:29.002722",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "f22a0e7c-b1c7-4ddf-85c0-c2335843ad6e",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T19:19:57.632918",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "2a7c446b-b825-42d6-93bf-99e76ce0c0d0",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T19:20:05.369633",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "dd30a370-4386-4b8c-96ab-71097ad558d3",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T19:20:11.753524",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "75991d42-466c-4dd6-bef4-9eba3795b240",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T19:20:18.161285",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "731d70ce-1b46-4882-a03d-3c6f7de1fceb",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T19:20:24.461015",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "29076e14-cb6a-48c0-8978-ca164583541d",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T19:20:31.381777",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "b60826b8-e61c-4d72-87b3-6bf1dcea1d3b",
+      "content": "Processing greeting with neutral sentiment",
+      "timestamp": "2025-05-17T19:20:36.862722",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "dc553a2c-ae6e-4f32-a269-84c21599ad02",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T19:20:44.525543",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "70a99a3e-49b1-4eb5-911a-ebbbbc5e3ed5",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T19:20:52.758492",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "a96e78b9-4df6-43ad-a598-a3e4b0855dab",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T19:21:00.230653",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "cb9d50b6-afe1-404a-a7dc-b025617ecce8",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T19:21:07.201565",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "3dd7f7e2-cbd9-4195-87f1-ed73d3315643",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T19:21:14.601511",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "4aa273db-4c65-45d9-b001-1e350d77f3d0",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T19:21:24.304614",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    }
+  ],
+  "memories": [],
+  "beliefs": [],
+  "preferences": {},
+  "version": "1.0",
+  "last_saved": "2025-05-17T19:21:24.319665"
+}

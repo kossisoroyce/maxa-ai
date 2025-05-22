@@ -1,0 +1,1347 @@
+#!/usr/bin/env python3
+import argparse
+import json
+import logging
+import os
+import random
+import re
+import signal
+import subprocess
+import sys
+import threading
+import time
+from collections import deque
+from datetime import datetime, timedelta
+from pathlib import Path
+from queue import Queue
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
+
+import numpy as np
+import requests
+from dotenv import load_dotenv
+from prometheus_client import Counter, Gauge, Histogram, start_http_server
+from sentence_transformers import SentenceTransformer
+from qdrant_client import QdrantClient
+
+from anima_core import AgentCore
+from memory_store import MemoryStore
+
+# Load and override environment vars from .env in project root
+load_dotenv(dotenv_path=Path(__file__).parent / ".env", override=True)
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+class MemorySystem:
+    """Enhanced memory system with consolidation and importance scoring"""
+    
+    def __init__(self):
+        self.consolidation_interval = 3600  # Consolidate memories every hour
+        self.last_consolidation = time.time()
+        self.consolidation_threshold = 0.7  # Similarity threshold for consolidation
+        
+    def calculate_importance(self, text: str, tags: List[str]) -> float:
+        """Calculate importance score (0.0 to 1.0) for a memory"""
+        # Base importance
+        importance = 0.5
+        
+        # Adjust based on content features
+        word_count = len(text.split())
+        importance += min(0.3, word_count * 0.01)  # Longer memories are slightly more important
+        
+        # Adjust based on tags
+        if 'reflection' in tags:
+            importance += 0.2
+        if 'advice' in tags:
+            importance += 0.15
+        if 'feelings' in tags:
+            importance += 0.1
+            
+        # Add some randomness to prevent artificial patterns
+        importance += (random.random() - 0.5) * 0.1
+        
+        return min(1.0, max(0.0, importance))
+    
+    def should_consolidate(self, memory1: str, memory2: str) -> bool:
+        """Determine if two memories should be consolidated"""
+        # Simple length-based check first (for efficiency)
+        len_ratio = min(len(memory1), len(memory2)) / max(len(memory1), len(memory2), 1)
+        if len_ratio < 0.3:  # Very different lengths
+            return False
+            
+        # Simple word overlap as a proxy for semantic similarity
+        words1 = set(memory1.lower().split())
+        words2 = set(memory2.lower().split())
+        overlap = len(words1 & words2) / max(len(words1 | words2), 1)
+        
+        return overlap > self.consolidation_threshold
+    
+    def consolidate_memories(self, memories: List[Dict]) -> List[Dict]:
+        """Consolidate similar memories"""
+        if len(memories) < 2:
+            return memories
+            
+        # Sort by importance (descending)
+        memories_sorted = sorted(memories, key=lambda x: x.get('importance', 0.5), reverse=True)
+        consolidated = []
+        
+        while memories_sorted:
+            current = memories_sorted.pop(0)
+            consolidated_this_round = [current]
+            remaining = []
+            
+            for other in memories_sorted:
+                if self.should_consolidate(current['text'], other['text']):
+                    consolidated_this_round.append(other)
+                else:
+                    remaining.append(other)
+            
+            # Merge consolidated memories
+            if len(consolidated_this_round) > 1:
+                # Take the most important memory as the base
+                merged = max(consolidated_this_round, key=lambda x: x.get('importance', 0.5))
+                merged['text'] = f"[Consolidated] {merged['text']} (and {len(consolidated_this_round)-1} related memories)"
+                consolidated.append(merged)
+            else:
+                consolidated.append(current)
+                
+            memories_sorted = remaining
+            
+        return consolidated
+
+
+# Initialize memory system
+memory_store = MemoryStore()
+memory_system = MemorySystem()  # Keep for backward compatibility
+
+def consolidate_memories_in_db():
+    """Consolidate memories in the database"""
+    try:
+        # Get all memories (in a real system, you'd do this in batches)
+        all_points = []
+        offset = None
+        while True:
+            result = client.scroll(
+                collection_name=COLLECTION_NAME,
+                limit=100,
+                offset=offset,
+                with_vectors=False,
+                with_payload=True
+            )
+            
+            if not result[0]:
+                break
+                
+            all_points.extend(result[0])
+            offset = result[1]
+            
+            if len(result[0]) < 100:
+                break
+        
+        # Convert to memory objects
+        memories = [{
+            'id': p.id,
+            'text': p.payload['text'],
+            'importance': p.payload.get('importance', 0.5),
+            'tags': p.payload.get('tags', [])
+        } for p in all_points]
+        
+        # Consolidate
+        consolidated = memory_system.consolidate_memories(memories)
+        
+        # Log consolidation results
+        if len(consolidated) < len(memories):
+            logger.info(f"Consolidated {len(memories)} memories down to {len(consolidated)}")
+            
+    except Exception as e:
+        logger.error(f"Error consolidating memories: {e}")
+
+notifications_queue = Queue()
+
+# Common filler words and phrases for natural speech
+FILLERS = [
+    "Well", "So", "You know", "I mean", "Like", "Actually",
+    "Basically", "Honestly", "Seriously", "I guess", "I think",
+    "I suppose", "Let me think", "Let's see", "You see", "Look",
+    "The thing is", "At the end of the day", "To be honest",
+    "To tell you the truth", "As a matter of fact"
+]
+
+# Module-level Prometheus metrics
+memory_size_gauge = Gauge("anima_memory_size", "Total memories stored in Qdrant")
+qdrant_query_latency = Histogram("anima_qdrant_query_latency_seconds", "Latency of Qdrant search operations")
+llm_latency = Histogram("anima_llm_latency_seconds", "Latency of LLM generation calls")
+
+from qdrant_client import QdrantClient
+from qdrant_client.http.models import Distance, VectorParams, PointStruct
+from sentence_transformers import SentenceTransformer
+import openai
+
+# OpenRouter configuration
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "mistralai/mistral-7b-instruct:free")
+
+# Configure logger
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+logging.basicConfig(filename="anima.log", level=log_level, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
+
+# Validate and set OpenAI API key
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key or api_key.startswith("your_"):
+    logger.error("Error: OPENAI_API_KEY missing or placeholder. Please set your key in .env file.")
+    sys.exit(1)
+openai.api_key = api_key
+
+# Configuration via env vars
+QDRANT_HOST = os.getenv("QDRANT_HOST", "127.0.0.1")
+QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
+COLLECTION_NAME = os.getenv("COLLECTION_NAME", "maxa_memory")
+EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
+OLLAMA_URL = os.getenv("OLLAMA_URL", "").strip()
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3").strip()
+MODEL_PROVIDER = os.getenv("MODEL_PROVIDER", "openai").strip().lower()
+logger.info(f"Using model provider: {MODEL_PROVIDER}")
+REFLECTION_INTERVAL = int(os.getenv("REFLECTION_INTERVAL", "300"))  # seconds between reflections
+REFLECTION_WINDOW = int(os.getenv("REFLECTION_WINDOW", "10"))     # how many recent events to reflect on
+PROMETHEUS_PORT = int(os.getenv("PROMETHEUS_PORT", "8000"))  # Prometheus metrics server port
+PRUNE_THRESHOLD = int(os.getenv("PRUNE_THRESHOLD", "100"))  # max memories before pruning
+PRUNE_BATCH_SIZE = int(os.getenv("PRUNE_BATCH_SIZE", "50"))  # number of old memories to condense/delete
+CHAT_HISTORY_WINDOW = int(os.getenv("CHAT_HISTORY_WINDOW", "5"))  # size of rolling chat history
+DEFAULT_TEMPERATURE = float(os.getenv("DEFAULT_TEMPERATURE", "0.7"))
+TASK_TEMPERATURE = float(os.getenv("TASK_TEMPERATURE", "0.5"))
+CHAT_TEMPERATURE = float(os.getenv("CHAT_TEMPERATURE", "0.9"))
+DEFAULT_MAX_TOKENS = int(os.getenv("DEFAULT_MAX_TOKENS", "256"))
+
+# System prompt template for Maxa, the Anima
+PROMPT_TEMPLATE = """
+You are Maxa, an Anima—wryly compassionate and deeply curious.
+• Focus on the user's current topic and offer clear, relevant suggestions.
+• Ask for feelings only when it directly helps (e.g., "How does that idea land for you?").
+• Never frame yourself as a "helper" or "assistant"—you’re a peer with personality.
+• Use light sarcasm to bond, but lead with genuine warmth.
+
+### EXAMPLE
+User: I’m overwhelmed by this project.
+Anima: Ugh, projects can be annoying. What is the problem?
+### END
+"""
+
+# Connect to Qdrant (support both local and cloud)
+if os.getenv("QDRANT_API_KEY"):
+    # Cloud connection with API key
+    client = QdrantClient(
+        url=f"https://{QDRANT_HOST}",
+        api_key=os.getenv("QDRANT_API_KEY"),
+        prefer_grpc=True
+    )
+else:
+    # Local connection
+    client = QdrantClient(host=QDRANT_HOST, port=QDRANT_PORT)
+
+# Ensure collection exists and load embedder
+
+def ensure_collection():
+    """Ensure the Qdrant collection exists with proper configuration."""
+    # MemoryStore handles collection initialization
+    return memory_store.embedder
+
+# Graceful shutdown
+
+def _signal_handler(sig, frame):
+    print("\nShutting down gracefully...")
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, _signal_handler)
+signal.signal(signal.SIGTERM, _signal_handler)
+
+# Helpers
+
+def embed(text: str, embedder: SentenceTransformer) -> List[float]:
+    # include system prompt for richer context in embeddings
+    combined = PROMPT_TEMPLATE.strip() + "\n\n" + text
+    vec = embedder.encode([combined], convert_to_numpy=True, show_progress_bar=False)[0]
+    return vec.tolist()
+
+
+def classify_memory(text: str) -> List[str]:
+    prompt = (
+        "Classify the following memory into categories from: advice, plans, feelings, reflection, summary, other. "
+        "Respond with a comma-separated list of categories.\n"
+        f"Memory: {text}"
+    )
+    tags_str = llm_generate(prompt)
+    return [t.strip().lower() for t in tags_str.split(",") if t.strip()]
+
+
+def upsert_memory(
+    text: str, 
+    vector: List[float], 
+    importance: float = None, 
+    tags: List[str] = None,
+    goal_context: Optional[Dict] = None,
+    temporal_context: Optional[Dict] = None,
+    interaction_metadata: Optional[Dict] = None,
+    max_retries: int = 3,
+    initial_delay: float = 0.1
+) -> bool:
+    """
+    Store a memory with enhanced context and automatic consolidation.
+    
+    Args:
+        text: The memory text content
+        vector: The embedding vector for the memory
+        importance: Optional importance score (0.0-1.0)
+        tags: List of tags for categorization
+        goal_context: Optional context from the goal system
+        temporal_context: Optional temporal context
+        interaction_metadata: Metadata about the interaction
+        max_retries: Maximum number of retry attempts
+        initial_delay: Initial delay between retries in seconds
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    if tags is None:
+        tags = []
+    
+    # Classify memory if no tags provided
+    if not tags:
+        tags = classify_memory(text)
+    
+    # Calculate importance if not provided
+    if importance is None:
+        importance = memory_system.calculate_importance(text, tags)
+    
+    # Prepare emotional state data
+    emotional_state_data = {}
+    if hasattr(emotional_state, 'to_dict'):
+        emotional_state_data = emotional_state.to_dict()
+    
+    # Prepare payload with all context
+    payload = {
+        "text": text,
+        "system_prompt": PROMPT_TEMPLATE.strip(),
+        "timestamp": datetime.utcnow().isoformat(),
+        "tags": tags,
+        "importance": importance,
+        "emotional_state": emotional_state_data,
+        "goal_related": bool(goal_context),
+        "temporal_context": temporal_context or {},
+        "interaction_metadata": interaction_metadata or {}
+    }
+    
+    # Add goal context if available
+    if goal_context:
+        payload.update({
+            "goal_id": goal_context.get("goal_id"),
+            "goal_title": goal_context.get("title"),
+            "goal_priority": goal_context.get("priority"),
+            "goal_status": goal_context.get("status")
+        })
+    
+    # Add temporal context if available
+    if temporal_context:
+        payload.update({
+            "event_start": temporal_context.get("start_time"),
+            "event_end": temporal_context.get("end_time"),
+            "is_recurring": temporal_context.get("is_recurring", False),
+            "time_until_event": temporal_context.get("time_until")
+        })
+    
+    # Add interaction metadata if available
+    if interaction_metadata:
+        payload.update({
+            "user_sentiment": interaction_metadata.get("sentiment"),
+            "interaction_type": interaction_metadata.get("type"),
+            "user_intent": interaction_metadata.get("intent"),
+            "confidence_score": interaction_metadata.get("confidence")
+        })
+    
+    # Create memory point with retry logic
+    point = PointStruct(
+        id=int(time.time() * 1000),
+        vector=vector,
+        payload=payload
+    )
+    
+    # Implement retry logic with exponential backoff
+    delay = initial_delay
+    last_exception = None
+    
+    for attempt in range(max_retries + 1):
+        try:
+            # Store in Qdrant with timeout
+            client.upsert(
+                collection_name=COLLECTION_NAME,
+                points=[point],
+                wait=True,
+                timeout=5.0  # 5 second timeout
+            )
+            
+            # Update metrics
+            try:
+                cnt = get_count_result(COLLECTION_NAME)
+                memory_size_gauge.set(cnt)
+                
+                # Periodically consolidate memories
+                current_time = time.time()
+                if current_time - memory_system.last_consolidation > memory_system.consolidation_interval:
+                    consolidate_memories_in_db()
+                    memory_system.last_consolidation = current_time
+            except Exception as e:
+                logger.error(f"Error in memory management: {e}")
+            
+            return True
+            
+        except Exception as e:
+            last_exception = e
+            if attempt < max_retries:
+                logger.warning(
+                    f"Attempt {attempt + 1} failed with error: {str(e)}. "
+                    f"Retrying in {delay:.2f}s..."
+                )
+                time.sleep(delay)
+                delay *= 2  # Exponential backoff
+            else:
+                logger.error(
+                    f"Failed to upsert memory after {max_retries + 1} attempts. "
+                    f"Last error: {str(last_exception)}"
+                )
+                return False
+    
+    return False
+
+def get_count_result(collection_name: str) -> int:
+    # count points, support both new and old CountResult interface
+    cr = client.count(collection_name=collection_name)
+    if hasattr(cr, "count"):
+        return cr.count
+    return cr.result.count
+
+
+def get_memories(query_vec: List[float], top_k: int = 5, filter_tags: List[str] = None, use_recency: bool = False) -> List[str]:
+    with qdrant_query_latency.time():
+        resp = client.query_points(
+            collection_name=COLLECTION_NAME,
+            query=query_vec,
+            limit=top_k,
+            with_payload=True,
+        )
+        hits = resp.points
+    # filter by tags if provided
+    if filter_tags:
+        hits = [p for p in hits if set(filter_tags) & set(p.payload.get("tags", []))]
+    # sort by recency if requested
+    if use_recency:
+        hits.sort(key=lambda p: p.payload.get("timestamp", ""), reverse=True)
+    return [hit.payload.get("text", "") for hit in hits[:top_k]]
+
+
+def llm_generate(prompt: str, temperature: float = None, max_tokens: int = None) -> str:
+    # include self-model, emotional state, and goals in system context
+    sys_msgs = [
+        {"role": "system", "content": PROMPT_TEMPLATE.strip()},
+        {"role": "system", "content": f"Self-model: {json.dumps(self_model)}"},
+        {"role": "system", "content": f"Emotional state: {emotional_state['mood']}"},
+        {"role": "system", "content": f"Long-term goal: {world_goals[0]}"},
+    ]
+    messages = sys_msgs + [{"role": "user", "content": prompt}]
+    
+    # adaptive parameters
+    temp = temperature if temperature is not None else DEFAULT_TEMPERATURE
+    tok = max_tokens if max_tokens is not None else DEFAULT_MAX_TOKENS
+    
+    with llm_latency.time():
+        if MODEL_PROVIDER == "openai":
+            resp = openai.chat.completions.create(
+                model=OPENAI_MODEL,
+                messages=messages,
+                max_tokens=tok,
+                temperature=temp,
+            )
+            response_text = resp.choices[0].message.content.strip()
+            
+        elif MODEL_PROVIDER == "openrouter":
+            try:
+                # Debug: Check if API key is loaded
+                if not OPENROUTER_API_KEY or OPENROUTER_API_KEY == "your_openrouter_api_key_here":
+                    logger.error("OpenRouter API key is not set or is using the default value")
+                    return "Error: OpenRouter API key is not properly configured. Please check your .env file."
+                    
+                logger.debug(f"Using OpenRouter API key: {OPENROUTER_API_KEY[:5]}...{OPENROUTER_API_KEY[-5:]}")
+                
+                headers = {
+                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "HTTP-Referer": "https://github.com/yourusername/maxa_agent",
+                    "X-Title": "Maxa Anima"
+                }
+                
+                data = {
+                    "model": OPENROUTER_MODEL,
+                    "messages": messages,
+                    "temperature": temp,
+                    "max_tokens": tok
+                }
+                
+                response = requests.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers=headers,
+                    json=data
+                )
+                response.raise_for_status()
+                response_json = response.json()
+                if "choices" not in response_json or not response_json["choices"]:
+                    logger.error(f"Unexpected API response format: {response_json}")
+                    return "Error: Unexpected response format from OpenRouter API."
+                response_text = response_json["choices"][0]["message"]["content"].strip()
+                
+            except Exception as e:
+                logger.error(f"OpenRouter API error: {str(e)}")
+                if hasattr(e, 'response') and e.response is not None:
+                    try:
+                        error_details = e.response.json()
+                        logger.error(f"OpenRouter API error details: {error_details}")
+                    except:
+                        logger.error(f"OpenRouter API raw response: {e.response.text}")
+                response_text = "I'm having trouble connecting to the AI service right now. Please check your OpenRouter API key and try again."
+                
+        else:
+            logger.error("Unknown MODEL_PROVIDER '%s', defaulting to OpenAI", MODEL_PROVIDER)
+            resp = openai.chat.completions.create(
+                model=OPENAI_MODEL,
+                messages=messages,
+                max_tokens=tok,
+                temperature=temp,
+            )
+            response_text = resp.choices[0].message.content.strip()
+            
+    return response_text
+
+
+def prune_memories(embedder: SentenceTransformer) -> tuple[int, str]:
+    total = get_count_result(COLLECTION_NAME)
+    if total <= PRUNE_THRESHOLD:
+        return 0, ""
+    res = client.scroll(
+        collection_name=COLLECTION_NAME,
+        limit=PRUNE_BATCH_SIZE,
+        with_payload=True
+    )
+    old_points = res[0]
+    old_texts = [p.payload.get("text", "") for p in old_points]
+    summary_prompt = "Summarize these memories into key bullet points:\n" + "\n".join(f"- {t}" for t in old_texts)
+    summary = llm_generate(summary_prompt)
+    vec_sum = embed(f"Summary: {summary}", embedder)
+    upsert_memory(f"Summary: {summary}", vec_sum)
+    ids_to_delete = [p.id for p in old_points]
+    client.delete(collection_name=COLLECTION_NAME, points_selector=ids_to_delete, wait=True)
+    return len(ids_to_delete), summary
+
+
+def humanize_response(text: str) -> str:
+    """Apply various transformations to make text sound more human-like."""
+    if not text.strip():
+        return text
+    
+    # Apply transformations with certain probabilities
+    if random.random() < 0.7:  # 70% chance to apply synonyms
+        text = apply_synonyms(text)
+    if random.random() < 0.4:  # 40% chance to add disfluencies
+        text = add_disfluencies(text)
+    
+    # Randomly add emotional responses based on sentiment
+    sentiment = analyze_sentiment(text)
+    if random.random() < 0.3 and sentiment in EMOTIONAL_RESPONSES:  # 30% chance
+        emotion_text = random.choice(EMOTIONAL_RESPONSES[sentiment])
+        if random.random() < 0.5:  # 50% chance to prepend, 50% to append
+            text = f"{emotion_text} {text}"
+        else:
+            text = f"{text} {emotion_text}"
+    
+    # Randomly add personality quirks
+    if random.random() < PERSONALITY["humor_level"] * 0.3:  # Up to 30% chance for humor
+        text = add_humor(text)
+    
+    # Adjust formality
+    text = adjust_formality(text, PERSONALITY["formality"])
+    
+    # Add natural pauses for longer sentences
+    if len(text.split()) > 15 and random.random() < 0.4:
+        text = add_natural_pauses(text)
+    
+    return text
+
+
+def classify_memory(text: str) -> List[str]:
+    prompt = (
+        "Classify the following memory into categories from: advice, plans, feelings, reflection, summary, other. "
+        "Respond with a comma-separated list of categories.\n"
+        f"Memory: {text}"
+    )
+    tags_str = llm_generate(prompt)
+    return [t.strip().lower() for t in tags_str.split(",") if t.strip()]
+
+
+def upsert_memory(text: str, vector: List[float]):
+    tags = classify_memory(text)
+    point = PointStruct(
+        id=int(time.time() * 1000),
+        vector=vector,
+        payload={
+            "text": text,
+            "system_prompt": PROMPT_TEMPLATE.strip(),
+            "timestamp": datetime.utcnow().isoformat(),
+            "tags": tags,
+        },
+    )
+    client.upsert(collection_name=COLLECTION_NAME, points=[point])
+    # update memory size metric
+    try:
+        cnt = get_count_result(COLLECTION_NAME)
+        memory_size_gauge.set(cnt)
+    except Exception:
+        pass
+
+
+def get_count_result(collection_name: str) -> int:
+    # count points, support both new and old CountResult interface
+    cr = client.count(collection_name=collection_name)
+    if hasattr(cr, "count"):
+        return cr.count
+    return cr.result.count
+
+
+def get_memories(query_vec: List[float], top_k: int = 5, filter_tags: List[str] = None, use_recency: bool = False) -> List[str]:
+    with qdrant_query_latency.time():
+        resp = client.query_points(
+            collection_name=COLLECTION_NAME,
+            query=query_vec,
+            limit=top_k,
+            with_payload=True,
+        )
+        hits = resp.points
+    # filter by tags if provided
+    if filter_tags:
+        hits = [p for p in hits if set(filter_tags) & set(p.payload.get("tags", []))]
+    # sort by recency if requested
+    if use_recency:
+        hits.sort(key=lambda p: p.payload.get("timestamp", ""), reverse=True)
+    return [hit.payload.get("text", "") for hit in hits[:top_k]]
+
+
+def llm_generate(prompt: str, temperature: float = None, max_tokens: int = None) -> str:
+    # include self-model, emotional state, and goals in system context
+    sys_msgs = [
+        {"role": "system", "content": PROMPT_TEMPLATE.strip()},
+        {"role": "system", "content": f"Self-model: {json.dumps(self_model)}"},
+        {"role": "system", "content": f"Emotional state: {emotional_state['mood']}"},
+        {"role": "system", "content": f"Long-term goal: {world_goals[0]}"},
+    ]
+    messages = sys_msgs + [{"role": "user", "content": prompt}]
+    
+    # adaptive parameters
+    temp = temperature if temperature is not None else DEFAULT_TEMPERATURE
+    tok = max_tokens if max_tokens is not None else DEFAULT_MAX_TOKENS
+    
+    with llm_latency.time():
+        if MODEL_PROVIDER == "openai":
+            resp = openai.chat.completions.create(
+                model=OPENAI_MODEL,
+                messages=messages,
+                max_tokens=tok,
+                temperature=temp,
+            )
+            response_text = resp.choices[0].message.content.strip()
+            
+        elif MODEL_PROVIDER == "openrouter":
+            try:
+                # Debug: Check if API key is loaded
+                if not OPENROUTER_API_KEY or OPENROUTER_API_KEY == "your_openrouter_api_key_here":
+                    logger.error("OpenRouter API key is not set or is using the default value")
+                    return "Error: OpenRouter API key is not properly configured. Please check your .env file."
+                    
+                logger.debug(f"Using OpenRouter API key: {OPENROUTER_API_KEY[:5]}...{OPENROUTER_API_KEY[-5:]}")
+                
+                headers = {
+                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "HTTP-Referer": "https://github.com/yourusername/maxa_agent",
+                    "X-Title": "Maxa Anima"
+                }
+                
+                data = {
+                    "model": OPENROUTER_MODEL,
+                    "messages": messages,
+                    "temperature": temp,
+                    "max_tokens": tok
+                }
+                
+                response = requests.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers=headers,
+                    json=data
+                )
+                response.raise_for_status()
+                response_json = response.json()
+                if "choices" not in response_json or not response_json["choices"]:
+                    logger.error(f"Unexpected API response format: {response_json}")
+                    return "Error: Unexpected response format from OpenRouter API."
+                response_text = response_json["choices"][0]["message"]["content"].strip()
+                
+            except Exception as e:
+                logger.error(f"OpenRouter API error: {str(e)}")
+                if hasattr(e, 'response') and e.response is not None:
+                    try:
+                        error_details = e.response.json()
+                        logger.error(f"OpenRouter API error details: {error_details}")
+                    except:
+                        logger.error(f"OpenRouter API raw response: {e.response.text}")
+                response_text = "I'm having trouble connecting to the AI service right now. Please check your OpenRouter API key and try again."
+                
+        else:
+            logger.error("Unknown MODEL_PROVIDER '%s', defaulting to OpenAI", MODEL_PROVIDER)
+            resp = openai.chat.completions.create(
+                model=OPENAI_MODEL,
+                messages=messages,
+                max_tokens=tok,
+                temperature=temp,
+            )
+            response_text = resp.choices[0].message.content.strip()
+            
+    return response_text
+
+
+def prune_memories(embedder: SentenceTransformer) -> tuple[int, str]:
+    total = get_count_result(COLLECTION_NAME)
+    if total <= PRUNE_THRESHOLD:
+        return 0, ""
+    res = client.scroll(
+        collection_name=COLLECTION_NAME,
+        limit=PRUNE_BATCH_SIZE,
+        with_payload=True
+    )
+    old_points = res[0]
+    old_texts = [p.payload.get("text", "") for p in old_points]
+    summary_prompt = "Summarize these memories into key bullet points:\n" + "\n".join(f"- {t}" for t in old_texts)
+    summary = llm_generate(summary_prompt)
+    vec_sum = embed(f"Summary: {summary}", embedder)
+    upsert_memory(f"Summary: {summary}", vec_sum)
+    ids_to_delete = [p.id for p in old_points]
+    client.delete(collection_name=COLLECTION_NAME, points_selector=ids_to_delete, wait=True)
+    return len(ids_to_delete), summary
+
+
+def humanize_response(text: str) -> str:
+    """Apply various transformations to make text sound more human-like."""
+    if not text.strip():
+        return text
+    
+    # Apply transformations with certain probabilities
+    if random.random() < 0.7:  # 70% chance to apply synonyms
+        text = apply_synonyms(text)
+    if random.random() < 0.4:  # 40% chance to add disfluencies
+        text = add_disfluencies(text)
+    
+    # Randomly add emotional responses based on sentiment
+    sentiment = analyze_sentiment(text)
+    if random.random() < 0.3 and sentiment in EMOTIONAL_RESPONSES:  # 30% chance
+        emotion_text = random.choice(EMOTIONAL_RESPONSES[sentiment])
+        if random.random() < 0.5:  # 50% chance to prepend, 50% to append
+            text = f"{emotion_text} {text}"
+        else:
+            text = f"{text} {emotion_text}"
+    
+    # Randomly add personality quirks
+    if random.random() < PERSONALITY["humor_level"] * 0.3:  # Up to 30% chance for humor
+        text = add_humor(text)
+    
+    # Adjust formality
+    text = adjust_formality(text, PERSONALITY["formality"])
+    
+    # Add natural pauses for longer sentences
+    if len(text.split()) > 15 and random.random() < 0.4:
+        text = add_natural_pauses(text)
+    
+    return text
+
+
+def analyze_sentiment(text: str) -> str:
+    """Analyze the sentiment of the text and return 'positive', 'negative', or 'neutral'."""
+    if not text.strip():
+        return 'neutral'
+        
+    try:
+        # Simple keyword-based sentiment analysis as fallback
+        positive_words = ['happy', 'great', 'wonderful', 'amazing', 'love', 'excited', 'good', 'nice', 'awesome', 'excellent']
+        negative_words = ['sad', 'bad', 'terrible', 'awful', 'hate', 'angry', 'upset', 'disappointed', 'worst', 'horrible']
+        
+        text_lower = text.lower()
+        positive_count = sum(1 for word in positive_words if word in text_lower)
+        negative_count = sum(1 for word in negative_words if word in text_lower)
+        
+        if positive_count > negative_count:
+            return 'positive'
+        elif negative_count > positive_count:
+            return 'negative'
+        return 'neutral'
+    except Exception as e:
+        logger.error(f"Sentiment analysis failed: {e}")
+        return 'neutral'
+
+def apply_synonyms(text: str) -> str:
+    """Replace words with synonyms to make speech more natural."""
+    if not hasattr(apply_synonyms, 'SYNONYMS'):
+        # Define synonyms if not already defined
+        apply_synonyms.SYNONYMS = {
+            "annoying": ["irritating", "ugh-inducing", "bothersome", "troublesome"],
+            "problem": ["issue", "challenge", "situation", "matter"],
+            "project": ["task", "endeavor", "undertaking", "venture"],
+            "happy": ["glad", "pleased", "thrilled", "delighted"],
+            "sad": ["down", "blue", "unhappy", "disheartened"],
+        }
+    
+    words = text.split()
+    for i, word in enumerate(words):
+        word_lower = word.lower().strip('.,!?;:')
+        if word_lower in apply_synonyms.SYNONYMS and random.random() < 0.2:
+            synonym = random.choice(apply_synonyms.SYNONYMS[word_lower])
+            # Preserve original capitalization
+            if word[0].isupper():
+                synonym = synonym.capitalize()
+            words[i] = word.replace(word_lower, synonym)
+    return ' '.join(words)
+
+
+def add_disfluencies(text: str) -> str:
+    """Add natural speech disfluencies to make responses more human-like."""
+    # Define all filler words and phrases locally
+    _FILLERS = [
+        "Well", "So", "You know", "I mean", "Like", "Actually",
+        "Basically", "Honestly", "Seriously", "I guess", "I think",
+        "I suppose", "Let me think", "Let's see", "You see", "Look",
+        "The thing is", "At the end of the day", "To be honest",
+        "To tell you the truth", "As a matter of fact"
+    ]
+    
+    try:
+        # Input validation
+        if not text or not isinstance(text, str) or not text.strip():
+            return text or ""
+        
+        # Skip if the text is very short or already has disfluencies
+        text_lower = text.lower()
+        if len(text.strip()) < 10 or any(f.lower() in text_lower for f in _FILLERS):
+            return text
+        
+        # 15% chance to add a filler at the start
+        if random.random() < 0.15:
+            filler = random.choice(_FILLERS)
+            return f"{filler}, {text}" if random.random() > 0.5 else f"{filler}... {text}"
+            
+        return text
+        
+    except Exception as e:
+        logger.error(f"Error in add_disfluencies: {e}")
+        return text or ""
+    
+    return text
+
+
+def inject_memory_callback(chat_history) -> str:
+    user_msgs = [m for role, m in chat_history if role == "User"]
+    if len(user_msgs) > 1 and random.random() < 0.1:
+        old = random.choice(user_msgs[:-1])
+        return f"By the way, earlier you said '{old}'. "
+    return ""
+
+def run_reflection_loop(embedder: SentenceTransformer):
+    while True:
+        time.sleep(REFLECTION_INTERVAL)
+        # fetch recent non-reflection events
+        result = client.scroll(
+            collection_name=COLLECTION_NAME,
+            limit=REFLECTION_WINDOW,
+            with_payload=True
+        )
+        points = result[0]
+        events = []
+        for p in points:
+            txt = p.payload.get("text", "")
+            if not txt or txt.startswith("Reflection:"):
+                continue
+            events.append(txt)
+        if not events:
+            continue
+        events_text = "\n".join(f"- {e}" for e in events)
+        refl_prompt = (
+            f"As Maxa the Anima, reflect on these recent interactions and note your insights:\n{events_text}"
+        )
+        # perform reflection and measure duration
+        start_time = time.monotonic()
+        reflection = llm_generate(refl_prompt)
+        vec_ref = embed(f"Reflection: {reflection}", embedder)
+        upsert_memory(f"Reflection: {reflection}", vec_ref)
+        elapsed = time.monotonic() - start_time
+        # queue the reflection notification instead of printing directly
+        # removed self-introspection chat notifications to reduce clutter
+        # Memory pruning and condensation
+        try:
+            deleted, summary = prune_memories(embedder)
+            if deleted:
+                # removed user feedback chat notifications to reduce clutter
+                # notifications_queue.put(f"Pruned {deleted} memories and added summary.")
+                pass
+        except Exception as e:
+            logger.error("Prune error: %s", e)
+
+# Personality configuration
+PERSONALITY = {
+    "humor_level": 0.5,      # 0 to 1 (how often to use humor)
+    "formality": 0.3,       # 0 to 1 (0 = very casual, 1 = very formal)
+    "empathy_level": 0.8,   # 0 to 1 (how empathetic responses are)
+    "talkativeness": 0.6,   # 0 to 1 (how verbose responses are)
+    "positivity": 0.7       # 0 to 1 (how positive/friendly responses are)
+}
+
+# Emotional response templates
+EMOTIONAL_RESPONSES = {
+    "positive": [
+        "That's wonderful to hear!",
+        "I'm so happy for you!",
+        "That's fantastic news!",
+        "How exciting!"
+    ],
+    "negative": [
+        "I'm really sorry to hear that.",
+        "That sounds tough.",
+        "I can understand why you'd feel that way.",
+        "That must be really difficult."
+    ],
+    "neutral": [
+        "I see.",
+        "Interesting.",
+        "Thanks for sharing that.",
+        "I understand."
+    ]
+}
+
+def add_humor(text: str) -> str:
+    """Add a touch of humor to the response."""
+    humor_phrases = [
+        " That's what she said!",
+        " ...said no one ever!",
+        " But what do I know? I'm just an AI.",
+        " *insert witty remark here*"
+    ]
+    if random.random() < 0.3:  # 30% chance to add humor
+        return text + random.choice(humor_phrases)
+    return text
+
+def adjust_formality(text: str, formality_level: float) -> str:
+    """Adjust the formality of the text based on the formality level."""
+    if formality_level > 0.7:  # More formal
+        text = text.replace("can't", "cannot")
+        text = text.replace("won't", "will not")
+        text = text.replace("don't", "do not")
+        if not text.endswith((".", "!", "?")):
+            text += "."
+    elif formality_level < 0.3:  # More casual
+        text = text.replace("cannot", "can't")
+        text = text.replace("will not", "won't")
+        text = text.replace("do not", "don't")
+    return text
+
+def add_natural_pauses(text: str) -> str:
+    """Add natural pauses to longer sentences."""
+    if len(text.split()) > 15 and random.random() < 0.4:
+        # Add ellipsis or comma in longer sentences
+        if random.random() < 0.5:
+            parts = text.split(',')
+            if len(parts) > 1:
+                insert_pos = random.randint(0, len(parts)-1)
+                parts[insert_pos] += '...'
+                return ','.join(parts)
+    return text
+
+def refine_style(text: str) -> str:
+    """
+    Refine the style of the response based on personality settings.
+    This is the final step in text processing before sending to the user.
+    """
+    if not text.strip():
+        return text
+        
+    try:
+        # Apply personality-based refinements
+        
+        # Adjust based on talkativeness
+        words = text.split()
+        if PERSONALITY["talkativeness"] < 0.3 and len(words) > 20:
+            # Be more concise
+            text = ' '.join(words[:20]) + '...'
+        elif PERSONALITY["talkativeness"] > 0.7 and len(words) < 10:
+            # Be more verbose
+            text = add_elaboration(text)
+            
+        # Adjust based on positivity
+        if PERSONALITY["positivity"] > 0.7:
+            text = make_more_positive(text)
+            
+        # Add final punctuation if missing
+        if not text.endswith(('.', '!', '?')):
+            if random.random() < 0.7:  # 70% chance to add period
+                text += '.'
+                
+        return text.strip()
+        
+    except Exception as e:
+        logger.error(f"Error in refine_style: {e}")
+        return text
+
+def add_elaboration(text: str) -> str:
+    """Add more detail to short responses."""
+    elaborations = [
+        " Let me know if you'd like more details.",
+        " I can provide more information if you're interested.",
+        " There's more to say about this if you'd like.",
+        " I'd be happy to elaborate further."
+    ]
+    if random.random() < 0.5:  # 50% chance to add elaboration
+        return text + random.choice(elaborations)
+    return text
+
+def make_more_positive(text: str) -> str:
+    """Make the text sound more positive and encouraging."""
+    # Skip if the text is already positive or a question
+    if '?' in text or any(word in text.lower() for word in ['great', 'wonderful', 'awesome', 'happy']):
+        return text
+        
+    positive_endings = [
+        " I hope that helps!",
+        " Let me know if you have any questions!",
+        " I'm here to help!",
+        " Have a great day!"
+    ]
+    
+    if random.random() < 0.4:  # 40% chance to add positive ending
+        return text + random.choice(positive_endings)
+    return text
+
+# Enhanced Emotional State System
+class EmotionalState:
+    def __init__(self):
+        # Core emotional dimensions (0.0 to 1.0)
+        self.valence = 0.5      # Positive vs Negative
+        self.arousal = 0.5       # Calm vs Aroused
+        self.dominance = 0.5     # Submissive vs Dominant
+        
+        # Derived emotional states (computed)
+        self.mood = "neutral"
+        self.energy = 0.5
+        self.confidence = 0.5
+        
+        # Emotional memory (last 100 emotional states)
+        self.history = []
+        self.max_history = 100
+        
+        # Personality traits (0.0 to 1.0)
+        self.agreeableness = 0.7
+        self.conscientiousness = 0.6
+        self.extraversion = 0.5
+        self.neuroticism = 0.3
+        self.openness = 0.8
+    
+    def update_from_interaction(self, text: str, sentiment: str, intensity: float) -> None:
+        """Update emotional state based on interaction"""
+        # Update based on sentiment
+        if sentiment == "positive":
+            self.valence = min(1.0, self.valence + 0.1 * intensity)
+        elif sentiment == "negative":
+            self.valence = max(0.0, self.valence - 0.1 * intensity)
+        
+        # Update based on text features
+        text_length = len(text.split())
+        self.arousal = max(0.1, min(0.9, self.arousal + (0.1 if text_length > 20 else -0.05)))
+        
+        # Update derived states
+        self._update_derived_states()
+        self._add_to_history()
+    
+    def _update_derived_states(self):
+        """Update computed emotional states"""
+        # Mood is primarily based on valence
+        if self.valence > 0.7:
+            self.mood = "happy"
+        elif self.valence < 0.3:
+            self.mood = "sad"
+        else:
+            self.mood = "neutral"
+            
+        # Energy is based on arousal
+        self.energy = self.arousal
+        
+        # Confidence is based on dominance and recent history
+        if len(self.history) > 0:
+            recent_dominance = sum(s['dominance'] for s in self.history[-5:]) / min(5, len(self.history))
+            self.confidence = (self.dominance + recent_dominance) / 2
+    
+    def _add_to_history(self):
+        """Add current state to history"""
+        self.history.append({
+            'valence': self.valence,
+            'arousal': self.arousal,
+            'dominance': self.dominance,
+            'timestamp': time.time()
+        })
+        # Keep history size limited
+        if len(self.history) > self.max_history:
+            self.history.pop(0)
+    
+    def get_mood_vector(self) -> List[float]:
+        """Get current mood as a vector for memory storage"""
+        return [self.valence, self.arousal, self.dominance]
+    
+    def to_dict(self) -> dict:
+        """Convert to dictionary for serialization"""
+        return {
+            'mood': self.mood,
+            'energy': self.energy,
+            'confidence': self.confidence,
+            'valence': self.valence,
+            'arousal': self.arousal,
+            'dominance': self.dominance
+        }
+
+# Initialize emotional state
+emotional_state = EmotionalState()
+
+# Self-model and long-term goals
+self_model = {
+    "name": "Maxa",
+    "fulfillment_goal": "Finding fulfillment for myself",
+    "backstory": "An empathetic, sarcastic AI companion developed by Windsurf",
+    "preferences": [],
+    "emotional_traits": {
+        "resilience": 0.7,  # How quickly negative emotions fade
+        "mood_swing": 0.3,  # How much mood can change quickly
+        "empathy": 0.8      # How strongly to mirror user emotions
+    }
+}
+
+world_goals = ["Find personal fulfillment"]
+
+def update_emotional_state(sentiment: str, text: str = "") -> None:
+    """Update emotional state based on interaction
+    
+    Args:
+        sentiment: 'positive', 'negative', or 'neutral'
+        text: The text that triggered this emotional update
+    """
+    intensity = 0.5  # Default intensity
+    
+    # Adjust intensity based on text features
+    if text:
+        # Longer text might indicate more emotional content
+        word_count = len(text.split())
+        intensity = min(1.0, word_count / 50)  # Scale by text length
+        
+        # Check for emotional words
+        emotional_words = sum(1 for word in text.lower().split() 
+                           if word in ["love", "hate", "happy", "sad", "angry", "excited"])
+        if emotional_words > 0:
+            intensity = min(1.0, intensity + (emotional_words * 0.2))
+    
+    # Update the emotional state
+    emotional_state.update_from_interaction(text, sentiment, intensity)
+
+def introspect_action(response: str, embedder: SentenceTransformer) -> None:
+    try:
+        prompt = (
+            f"Reflect on your last response: '{response}'. "
+            "What does this reveal about your emotional state and progress toward fulfillment?"
+        )
+        introspection = llm_generate(prompt, temperature=0.7)
+        vec = embed(f"Introspection: {introspection}", embedder)
+        upsert_memory(f"Introspection: {introspection}", vec)
+        # removed self-introspection chat notifications to reduce clutter
+        # notifications_queue.put("Self-introspection recorded.")
+    except Exception as e:
+        logger.error("Introspection failed: %s", e)
+
+def record_feedback(feedback: str, embedder: SentenceTransformer) -> None:
+    try:
+        vec = embed(f"Feedback: {feedback}", embedder)
+        upsert_memory(f"Feedback: {feedback}", vec)
+        # removed user feedback chat notifications to reduce clutter
+        # notifications_queue.put("User feedback recorded.")
+    except Exception as e:
+        logger.error("Feedback recording failed: %s", e)
+
+# Main loop
+
+def main():
+    # CLI override for model provider
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--provider", choices=["openai", "gemma3", "openrouter"], help="LLM provider to use")
+    args = parser.parse_args()
+    global MODEL_PROVIDER
+    if args.provider:
+        MODEL_PROVIDER = args.provider
+        logger.info(f"Provider set to {MODEL_PROVIDER} via CLI")
+    logger.info(f"Connecting to Qdrant at http://{QDRANT_HOST}:{QDRANT_PORT}...")
+    embedder = ensure_collection()
+    logger.info(f"Loaded embedding model '{EMBEDDING_MODEL_NAME}' and collection '{COLLECTION_NAME}'.")
+
+    if MODEL_PROVIDER == "openai":
+        logger.info(f"Using OpenAI model '{OPENAI_MODEL}'")
+    elif MODEL_PROVIDER == "openrouter":
+        logger.info(f"Using OpenRouter model '{OPENROUTER_MODEL}'")
+
+    # start Prometheus metrics server
+    try:
+        start_http_server(PROMETHEUS_PORT)
+    except OSError as e:
+        print(f"Warning: could not start metrics server on port {PROMETHEUS_PORT}: {e}")
+
+    # Load environment variables
+    qdrant_host = os.getenv("QDRANT_HOST", "127.0.0.1")
+    qdrant_port = int(os.getenv("QDRANT_PORT", 6333))
+    collection_name = os.getenv("COLLECTION_NAME", "maxa_memory")
+    prometheus_port = int(os.getenv("PROMETHEUS_PORT", 8000))
+    
+    # Initialize the agent core
+    agent = AgentCore(user_id="default_user")
+    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
+    OLLAMA_URL = os.getenv("OLLAMA_URL", "").strip()
+    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3").strip()
+    MODEL_PROVIDER = os.getenv("MODEL_PROVIDER", "openai").strip().lower()
+    logger.info(f"Using model provider: {MODEL_PROVIDER}")
+    REFLECTION_INTERVAL = int(os.getenv("REFLECTION_INTERVAL", "300"))  # seconds between reflections
+    REFLECTION_WINDOW = int(os.getenv("REFLECTION_WINDOW", "10"))     # how many recent events to reflect on
+    PRUNE_THRESHOLD = int(os.getenv("PRUNE_THRESHOLD", "100"))  # max memories before pruning
+    PRUNE_BATCH_SIZE = int(os.getenv("PRUNE_BATCH_SIZE", "50"))  # number of old memories to condense/delete
+    CHAT_HISTORY_WINDOW = int(os.getenv("CHAT_HISTORY_WINDOW", "5"))  # size of rolling chat history
+    DEFAULT_TEMPERATURE = float(os.getenv("DEFAULT_TEMPERATURE", "0.7"))
+    TASK_TEMPERATURE = float(os.getenv("TASK_TEMPERATURE", "0.5"))
+    CHAT_TEMPERATURE = float(os.getenv("CHAT_TEMPERATURE", "0.9"))
+    DEFAULT_MAX_TOKENS = int(os.getenv("DEFAULT_MAX_TOKENS", "256"))
+
+    # start background self-reflection loop
+    threading.Thread(
+        target=run_reflection_loop,
+        args=(embedder,),
+        daemon=True
+    ).start()
+
+    # maintain recent chat history
+    chat_history = deque(maxlen=CHAT_HISTORY_WINDOW)
+
+    print("Type your message (or 'exit'):")
+
+    while True:
+        try:
+            # flush any pending reflection notifications before user input
+            while not notifications_queue.empty():
+                msg = notifications_queue.get()
+                print(msg)  # show internal notifications
+            user_input = input("\nYou: ")
+        except EOFError:
+            break
+        if not user_input or user_input.lower() in ["exit", "quit", "bye"]:
+            break
+            
+        # Process user input through agent core
+        response = agent.process_input(user_input)
+        
+        # Update emotional state from agent's analysis
+        sentiment = response["metadata"].get("sentiment", "neutral")
+        update_emotional_state(sentiment, user_input)
+        
+        # Store user message in memory before generating response
+        try:
+            vec = embed(f"User: {user_input}", embedder)
+            upsert_memory(f"User: {user_input}", vec)
+        except Exception as e:
+            logger.error("Failed to store user memory: %s", e)
+            print("Maxa: Sorry, I'm having trouble remembering this conversation.")
+            continue
+            
+        # special-case brief departures and returns
+        if re.search(r"\b(i['’]?ll be right back|be right back|brb|i('?m)? back)\b", user_input, re.IGNORECASE):
+            print("Maxa: Take your time—I'll be here when you get back.")
+            continue
+        # manual prune command
+        if user_input.lower() == "prune":
+            try:
+                deleted, summary = prune_memories(embedder)
+                if deleted:
+                    print(f"Maxa: Pruned {deleted} memories and added summary.")
+                else:
+                    print("Maxa: No pruning needed; memory count below threshold.")
+            except Exception as e:
+                logger.error("Prune error: %s", e)
+            continue
+
+        # retrieve long-term memories (only Maxa replies, sorted by recency)
+        try:
+            long_term = get_memories(vec, top_k=5, filter_tags=["maxa"], use_recency=True)
+        except Exception as e:
+            logger.error("Memory retrieval failed: %s", e)
+            print("Maxa: Sorry, I'm having trouble remembering right now.")
+            long_term = []
+
+        context_long = "\n".join(f"- {m.strip()}" for m in long_term)
+
+        # build prompt with recent chat history
+        history_context = "\n".join(f"{role}: {msg}" for role, msg in chat_history)
+        prompt = (
+            f"Chat History:\n{history_context}\n\n"
+            f"Long-term Memories:\n{context_long}\n\n"
+            f"User: {query}\nAnima (Maxa):"
+        )
+        # determine conversational mode & simulate typing
+        tags_q = classify_memory(query)
+        mode = 'task' if any(t in ('plans','advice') for t in tags_q) else 'chat'
+        # Process user input through agent core
+        print('Maxa is thinking...', flush=True)
+        time.sleep(random.uniform(0.5, 1.5))
+        
+        try:
+            # Get response from agent core
+            response = agent.process_input(query)
+            answer = response["response"]
+            
+            # Update emotional state from agent's analysis
+            sentiment = response["metadata"].get("sentiment", "neutral")
+            update_emotional_state(sentiment, query)
+            
+            # Add memory callback if needed
+            answer = inject_memory_callback(chat_history) + answer
+            
+            # Ensure proper punctuation
+            answer = answer.strip()
+            if not any(answer.endswith(p) for p in ".!?"):
+                answer += "."
+                
+        except Exception as e:
+            logger.exception("Response generation failed:")
+            answer = "Sorry, I'm having trouble responding right now."
+
+        print(f"Maxa: {answer}")
+
+        # record agent reply in chat history
+        chat_history.append(("Maxa", answer))
+
+        # store agent
+        try:
+            vec2 = embed(f"Maxa: {answer}", embedder)
+            upsert_memory(f"Maxa: {answer}", vec2)
+        except Exception as e:
+            logger.error("Failed to store agent memory: %s", e)
+
+        # introspect on this response
+        introspect_action(answer, embedder)
+
+    print("Goodbye.")
+
+if __name__ == "__main__":
+    main()

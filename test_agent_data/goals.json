@@ -1,0 +1,53 @@
+{
+  "goals": [
+    {
+      "id": "goal_1_4078",
+      "title": "Learn About User",
+      "description": "Gather information about the user's preferences and personality",
+      "category": "learning",
+      "status": "pending",
+      "priority": 3,
+      "progress": 0.0,
+      "deadline": null,
+      "created_at": "2025-05-17T19:27:49.054076",
+      "updated_at": "2025-05-17T19:27:49.054099",
+      "subgoals": [
+        {
+          "description": "Ask about user's interests",
+          "deadline": null,
+          "status": "pending",
+          "priority": 2,
+          "progress": 0.0,
+          "dependencies": [],
+          "created_at": "2025-05-17T19:27:49.054083",
+          "updated_at": "2025-05-17T19:27:49.054084"
+        },
+        {
+          "description": "Identify user's communication style",
+          "deadline": null,
+          "status": "pending",
+          "priority": 2,
+          "progress": 0.0,
+          "dependencies": [],
+          "created_at": "2025-05-17T19:27:49.054096",
+          "updated_at": "2025-05-17T19:27:49.054097"
+        }
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "goal_2_2918",
+      "title": "System Maintenance",
+      "description": "Perform routine system checks and updates",
+      "category": "maintenance",
+      "status": "pending",
+      "priority": 2,
+      "progress": 0.0,
+      "deadline": null,
+      "created_at": "2025-05-17T19:27:49.054442",
+      "updated_at": "2025-05-17T19:27:49.054443",
+      "subgoals": [],
+      "metadata": {}
+    }
+  ]
+}

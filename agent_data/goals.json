@@ -1,0 +1,95 @@
+{
+  "goals": [
+    {
+      "id": "goal_1_6651",
+      "title": "Learn About User",
+      "description": "Gather information about the user's preferences and personality",
+      "category": "learning",
+      "status": "pending",
+      "priority": 3,
+      "progress": 0.0,
+      "deadline": "2025-05-17T17:30:29.294469",
+      "created_at": "2025-05-17T17:25:56.263133",
+      "updated_at": "2025-05-17T17:25:56.263173",
+      "subgoals": [
+        {
+          "description": "Ask about user's interests",
+          "deadline": "2025-05-17T17:30:29.294504",
+          "status": "pending",
+          "priority": 2,
+          "progress": 0.0,
+          "dependencies": [],
+          "created_at": "2025-05-17T17:25:56.263153",
+          "updated_at": "2025-05-17T17:25:56.263153"
+        },
+        {
+          "description": "Identify user's communication style",
+          "deadline": "2025-05-17T17:30:29.294522",
+          "status": "pending",
+          "priority": 2,
+          "progress": 0.0,
+          "dependencies": [],
+          "created_at": "2025-05-17T17:25:56.263170",
+          "updated_at": "2025-05-17T17:25:56.263170"
+        }
+      ],
+      "metadata": {}
+    },
+    {
+      "id": "goal_2_1508",
+      "title": "System Maintenance",
+      "description": "Perform routine system checks and updates",
+      "category": "maintenance",
+      "status": "pending",
+      "priority": 2,
+      "progress": 0.0,
+      "deadline": "2025-05-17T17:30:29.294531",
+      "created_at": "2025-05-17T17:25:56.263835",
+      "updated_at": "2025-05-17T17:25:56.263837",
+      "subgoals": [],
+      "metadata": {}
+    },
+    {
+      "id": "goal_3_8741",
+      "title": "Get AI Engineer Certification",
+      "description": "Achieve certification as an AI engineer by completing necessary courses and passing the exam.",
+      "category": "professional development",
+      "status": "pending",
+      "priority": 1,
+      "progress": 0.0,
+      "deadline": "2023-07-31T00:00:00",
+      "created_at": "2025-05-17T19:08:06.656703",
+      "updated_at": "2025-05-17T19:08:06.656705",
+      "subgoals": [],
+      "metadata": {}
+    },
+    {
+      "id": "goal_4_1739",
+      "title": "I want to improve my skills as an AI engineer",
+      "description": "I want to improve my skills as an AI engineer",
+      "category": "user_defined",
+      "status": "pending",
+      "priority": 2,
+      "progress": 0.0,
+      "deadline": "2025-05-17T20:18:06.591600",
+      "created_at": "2025-05-17T20:16:21.313587",
+      "updated_at": "2025-05-17T20:16:21.313588",
+      "subgoals": [],
+      "metadata": {}
+    },
+    {
+      "id": "goal_5_9348",
+      "title": "I want to improve my skills as an AI engineer",
+      "description": "I want to improve my skills as an AI engineer",
+      "category": "user_defined",
+      "status": "pending",
+      "priority": 2,
+      "progress": 0.0,
+      "deadline": "2025-05-17T20:26:19.332327",
+      "created_at": "2025-05-17T20:18:14.278526",
+      "updated_at": "2025-05-17T20:18:14.278527",
+      "subgoals": [],
+      "metadata": {}
+    }
+  ]
+}

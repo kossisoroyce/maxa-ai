@@ -1,0 +1,12 @@
+{
+  "user_id": "test_user",
+  "preferences": [],
+  "knowledge": {
+    "facts": {},
+    "last_updated": "2025-05-17T19:14:13.544696"
+  },
+  "relationship_strength": 0.5,
+  "trust_level": 0.5,
+  "emotional_bond": 0.3,
+  "interaction_count": 5
+}

@@ -1,0 +1,396 @@
+{
+  "state": {
+    "state": "active",
+    "intensity": 0.8,
+    "emotional_state": {
+      "neutral": 1.0,
+      "joy": 0.1309662445806321
+    },
+    "focus": "Processing chat interaction",
+    "sub_states": [],
+    "last_updated": "2025-05-17T19:08:06.657952"
+  },
+  "thoughts": [
+    {
+      "id": "e23e7c7c-caa0-46f2-aae1-418dca13b390",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T17:31:05.299284",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "a4d47aea-8016-4e1a-90e0-98b926b7dccb",
+      "content": "Processing greeting with neutral sentiment",
+      "timestamp": "2025-05-17T17:31:25.980631",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "b08b47c6-3892-461e-8be7-3bf5262cfa4c",
+      "content": "Processing chat with neutral sentiment",
+      "timestamp": "2025-05-17T17:31:46.795662",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "a3c0ab59-588e-4ad5-8599-a5850b1b0c36",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T17:32:00.259146",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "3e3abd7f-7e0d-490e-a27f-7848d8851884",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T17:50:02.026496",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "e993a98f-83ab-4f85-a5d1-2899f81e1bdc",
+      "content": "Processing chat with neutral sentiment",
+      "timestamp": "2025-05-17T17:50:31.728783",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "91c7a535-86fc-480d-aa8f-dc831f212abc",
+      "content": "Processing greeting with neutral sentiment",
+      "timestamp": "2025-05-17T17:50:57.958344",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "135fcc89-e151-4408-8c36-95e8e25bf4ea",
+      "content": "Processing chat with positive sentiment",
+      "timestamp": "2025-05-17T17:51:32.465586",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "5d9a4356-6f3b-4e23-82e3-764df760b189",
+      "content": "Processing chat with positive sentiment",
+      "timestamp": "2025-05-17T17:52:18.598800",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "d7ae8bf3-9724-4d75-a9c2-63a6651a0274",
+      "content": "Processing question with positive sentiment",
+      "timestamp": "2025-05-17T17:52:49.006867",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "e83b1eb6-51d5-47ab-9b19-9d52cd8242bd",
+      "content": "Processing chat with neutral sentiment",
+      "timestamp": "2025-05-17T17:54:11.401625",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "6a49af91-faa5-4249-b855-0001317d547b",
+      "content": "Processing greeting with neutral sentiment",
+      "timestamp": "2025-05-17T17:55:12.075798",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "a6b6ddc6-516e-45e4-830e-177b02f6bb16",
+      "content": "Processing chat with positive sentiment",
+      "timestamp": "2025-05-17T17:56:55.956052",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "41eb18cd-9ec6-4c8d-aceb-676458af0a45",
+      "content": "Processing chat with neutral sentiment",
+      "timestamp": "2025-05-17T17:58:10.850599",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "9c2b12a8-3286-42bf-a2be-db082f4cc9c0",
+      "content": "Processing chat with neutral sentiment",
+      "timestamp": "2025-05-17T18:02:18.130067",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "a99b8ef7-1425-4573-82b4-c9cbca2aa857",
+      "content": "Processing greeting with neutral sentiment",
+      "timestamp": "2025-05-17T18:03:24.806174",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "4db93d31-b396-4d66-abb0-f1df96d83c6c",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T18:03:39.464261",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "16fb388e-54e1-4709-b1ce-2c542316c892",
+      "content": "Processing chat with neutral sentiment",
+      "timestamp": "2025-05-17T18:03:52.416737",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "d3cc4806-e93d-4d2d-b1e0-498729e61fd9",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T18:04:50.998292",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "25070025-8a89-455c-8990-e74eb14cf204",
+      "content": "Processing chat with neutral sentiment",
+      "timestamp": "2025-05-17T18:21:23.560723",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "9abc5e04-4f6c-4b99-bb05-f2dafa33305c",
+      "content": "Processing chat with neutral sentiment",
+      "timestamp": "2025-05-17T18:21:32.248380",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "1c145f40-287f-40d3-8bb7-2805a9099a10",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T18:22:35.339075",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "4e6ec0b0-f380-4da7-93c4-3fbd15de65ec",
+      "content": "Processing greeting with neutral sentiment",
+      "timestamp": "2025-05-17T18:24:31.801001",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "4191fa87-2b3b-4848-888e-c7e3e1fcafb0",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T18:24:34.925309",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "7f27ac5f-a1bd-4c6d-a8bc-be699b785896",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T18:25:12.746169",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "20e40105-7180-48b9-aa85-5a37d0c8418f",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T18:25:46.726012",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "e10201e7-f3cc-4402-b02a-5258a4ee28aa",
+      "content": "Processing greeting with neutral sentiment",
+      "timestamp": "2025-05-17T18:26:34.573949",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "9294793c-60fb-4ffb-b3fc-36ef2ef00d99",
+      "content": "Processing greeting with neutral sentiment",
+      "timestamp": "2025-05-17T18:27:11.872631",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "b4704ce0-03e8-46cd-9815-0f3fe3255469",
+      "content": "Processing question with positive sentiment",
+      "timestamp": "2025-05-17T18:27:15.667150",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "7732dda5-db8c-4e8a-bfc4-0706865c3c37",
+      "content": "Processing greeting with neutral sentiment",
+      "timestamp": "2025-05-17T18:27:56.945351",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "917d1428-fe8d-484d-8fc9-a25b0086e8ca",
+      "content": "Processing greeting with neutral sentiment",
+      "timestamp": "2025-05-17T18:29:05.362058",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "b84d5b26-e541-4de9-b528-28be9b866500",
+      "content": "Processing greeting with neutral sentiment",
+      "timestamp": "2025-05-17T18:39:44.226986",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "8ee4d150-5b0d-41e7-bf86-c91422d262b0",
+      "content": "Processing chat with neutral sentiment",
+      "timestamp": "2025-05-17T18:40:15.966793",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "088e50d3-49e4-4874-9f42-492122c3c451",
+      "content": "Processing greeting with neutral sentiment",
+      "timestamp": "2025-05-17T18:41:15.384061",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "1d8ab93b-0f6c-47b2-bf0c-643a90b5a5e2",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T18:42:29.355874",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "0d21e829-0a12-41fc-addc-0d778798d9fd",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T18:42:31.228453",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "fcbedd8a-37af-4ae2-96c3-0596bdf89a7f",
+      "content": "Processing chat with neutral sentiment",
+      "timestamp": "2025-05-17T18:43:39.759390",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "0c2c7962-3064-44ee-a459-8fdc3047c566",
+      "content": "Processing greeting with neutral sentiment",
+      "timestamp": "2025-05-17T18:44:17.698442",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "bd1bd32e-e661-4898-b8dd-30fa8f2a3d2e",
+      "content": "Processing greeting with neutral sentiment",
+      "timestamp": "2025-05-17T18:44:51.765981",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "322d7f1a-f8ce-41bd-837a-387232b941f7",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T18:44:53.654659",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "3032d972-037a-4af0-ad89-552db182b303",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T18:48:55.382568",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "9bfbb58e-b8d9-4bf6-a807-7acedeae82eb",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T18:49:34.107538",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "66b6ee1d-b44b-42a0-8957-4f55d2dfe009",
+      "content": "Processing greeting with neutral sentiment",
+      "timestamp": "2025-05-17T18:57:46.793163",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "109bab37-8606-4c60-83e2-ad10f2e20155",
+      "content": "Processing question with neutral sentiment",
+      "timestamp": "2025-05-17T18:58:38.657413",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "9d83e2be-e883-4f7f-b55a-58df2e2b0ffd",
+      "content": "Processing chat with neutral sentiment",
+      "timestamp": "2025-05-17T18:59:32.280431",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "601da2a8-d76a-4456-96e3-e2bc62252b21",
+      "content": "Created a new goal: Get AI Engineer Certification",
+      "timestamp": "2025-05-17T19:08:06.657500",
+      "source": "goal_system",
+      "confidence": 0.9,
+      "tags": []
+    },
+    {
+      "id": "f64f28d8-8381-4a5f-a999-ebda94c8dcee",
+      "content": "Processing chat with neutral sentiment",
+      "timestamp": "2025-05-17T19:08:06.657984",
+      "source": "interaction",
+      "confidence": 0.9,
+      "tags": []
+    }
+  ],
+  "memories": [],
+  "beliefs": [],
+  "preferences": {},
+  "version": "1.0",
+  "last_saved": "2025-05-17T19:08:06.659947"
+}

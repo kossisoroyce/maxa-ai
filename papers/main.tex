@@ -1,0 +1,61 @@
+\documentclass[conference,compsoc]{IEEEtran}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage[sort&compress,numbers]{natbib}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\usepackage{booktabs}
+\usepackage{balance}
+\usepackage{url}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,positioning}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{subcaption}
+
+% Fix for bibliography spacing
+\makeatletter
+\let\@internalcite\@cite
+\makeatother
+
+\title{Maxa: A Cognitive Architecture for Personalized AI Assistants with Theory of Mind Capabilities}
+
+\author{
+  \IEEEauthorblockN{Kossiso Udodi Royce}
+  \IEEEauthorblockA{Collosa AI\\
+  Email: kossi@collosaai.com}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+    \input{sections/abstract}
+\end{abstract}
+
+\begin{IEEEkeywords}
+    Artificial Intelligence, Cognitive Architecture, Theory of Mind, Personalization, Conversational AI
+\end{IEEEkeywords}
+
+% Main content sections
+\input{sections/introduction}
+\input{sections/related_work}
+\input{sections/architecture}
+\input{sections/implementation}
+\input{sections/evaluation}
+\input{sections/discussion}
+\input{sections/conclusion}
+
+\balance
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+% Ensure all references are processed
+\makeatletter
+\immediate\write\@auxout{\string\bibstyle{IEEEtran}}
+\makeatother
+\end{document}
