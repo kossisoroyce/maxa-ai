@@ -1,44 +1,7 @@
-# LaTeX auxiliary files
-*.aux
-*.bbl
-*.blg
-*.fdb_latexmk
-*.fls
-*.log
-*.out
-*.synctex.gz
-*.toc
-*.lof
-*.lot
-*.lol
-*.bcf
-*.run.xml
-
-# Build artifacts
-*.pdf
-*.dvi
-
-# Python
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
 
 # C extensions
 *.so
@@ -90,6 +53,7 @@ coverage.xml
 *.log
 local_settings.py
 db.sqlite3
+db.sqlite3.*
 
 # Flask stuff:
 instance/
@@ -122,8 +86,6 @@ celerybeat-schedule
 
 # Environments
 .env
-.env.*
-!.env.example
 .venv
 env/
 venv/
@@ -162,13 +124,13 @@ dmypy.json
 
 # Local development
 .DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
 
-# Project specific
-*.pdf
+# Environment files (except .env.example)
+.env
+.env.*
+!.env.example
+
+# Logs and databases
 *.log
 logs/
 *.sqlite3
@@ -186,9 +148,6 @@ local_settings.py
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 
-# VS Code settings
-.vscode/
-
 # Virtual environment
 venv/
 ENV/
@@ -198,26 +157,32 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-*~
+# LaTeX auxiliary files
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+*.lof
+*.lot
+*.lol
+*.bcf
+*.run.xml
 
-# Local development files
+# Build artifacts
+*.pdf
+*.dvi
+
+# Backup files
+*~
+*.bak
+
+# Project specific
+anima.py.bak
 local/
 data/
 
