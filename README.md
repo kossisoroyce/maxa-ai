@@ -95,10 +95,7 @@ If you use Maxa in your research, please cite:
 
 ```bibtex
 @software{maxa2023,
-  author = {Your Name},
+  author = Kossiso Royce,
   title = {Maxa: Eternal Inference AI with Theory of Mind},
-  year = {2023},
-  publisher = {GitHub},
-  journal = {GitHub repository},
-  howpublished = {\url{https://github.com/yourusername/maxa-ai}}
+  year = {2025},
 }
